@@ -8,6 +8,8 @@ const {
   getAllPosts,
   updatePost,
   getPostById,
+  createTags,
+  addTagsToPost,
 } = require('../db');
 
 postsRouter.get('/', async (req, res, next) => {
@@ -38,7 +40,7 @@ postsRouter.get('/', async (req, res, next) => {
 });
 
 postsRouter.post('/', requireUser, async (req, res, next) => {
-  const { title, content = "" } = req.body;
+  const { title, content = "", tags } = req.body;
 
   const postData = {};
 
@@ -50,12 +52,18 @@ postsRouter.post('/', requireUser, async (req, res, next) => {
     const post = await createPost(postData);
 
     if (post) {
+      if (tags && tags.length > 0) {
+        const tagList = tags.trim().split(/\s+/);
+        await createTags(tagList);
+
+        await addTagsToPost(post.id, tagList);
+      }
       res.send(post);
     } else {
       next({
         name: 'PostCreationError',
         message: 'There was an error creating your post. Please try again.'
-      })
+      });
     }
   } catch ({ name, message }) {
     next({ name, message });
@@ -98,7 +106,23 @@ postsRouter.patch('/:postId', requireUser, async (req, res, next) => {
 });
 
 postsRouter.delete('/:postId', requireUser, async (req, res, next) => {
-  res.send({ message: 'under construction' });
+  const { postId } = req.params;
+
+  try {
+    const postToDelete = await getPostById(postId);
+
+    if (!postToDelete) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (postToDelete.author.id === req.user.id) {
+
+      return res.json({ message: 'Post deleted successfully' });
+    } else {
+      return res.status(403).json({ message: 'You are not authorized to delete this post' });
+    }
+  } catch ({ name, message }) {
+    next({ name, message });
+  }
 });
 
 module.exports = postsRouter;

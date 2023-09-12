@@ -18,10 +18,15 @@ server.use((req, res, next) => {
   next();
 });
 
+app.get('/protected-route', requireUser, (req, res) => {
+  res.json({ message: 'You have acces to this protected route.' });
+});
+
 const apiRouter = require('./api');
 server.use('/api', apiRouter);
 
 const { client } = require('./db');
+const { requireUser } = require('./api/utils');
 client.connect();
 
 server.listen(PORT, () => {
